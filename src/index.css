@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Cormorant Garamond", serif;
+  --color-brand-navy: #2d334a;
+  --color-brand-slate: #b0c0cc;
+  --color-brand-tan: #e6ddc4;
+  --color-brand-cream: #f1f1e6;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
+}
+
+@layer base {
+  body {
+    @apply bg-brand-cream text-brand-navy font-sans antialiased;
+  }
+  
+  h1, h2, h3, h4 {
+    @apply font-serif tracking-tight;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-[2.5rem] shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-black/5 p-6 transition-all duration-300 hover:shadow-[0_20px_40px_rgba(0,0,0,0.06)];
+  }
+
+  .card-glass {
+    @apply bg-white/70 backdrop-blur-xl rounded-[2.5rem] shadow-[0_4px_20px_rgba(0,0,0,0.02)] border border-white/40 p-6;
+  }
+
+  .btn-primary {
+    @apply bg-brand-navy text-white px-6 py-4 rounded-2xl hover:shadow-xl hover:shadow-brand-navy/20 active:scale-95 transition-all font-bold text-sm tracking-wide disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  .btn-secondary {
+    @apply bg-white text-brand-navy px-6 py-4 rounded-2xl border border-black/5 hover:bg-brand-cream/50 active:scale-95 transition-all font-bold text-sm tracking-wide;
+  }
+
+  .input-field {
+    @apply w-full px-5 py-4 rounded-2xl border border-black/5 bg-brand-cream/20 focus:bg-white focus:outline-none focus:ring-4 focus:ring-brand-navy/5 transition-all text-sm placeholder:text-brand-navy/30;
+  }
+
+  .glass-nav {
+    @apply bg-white/80 backdrop-blur-xl border-b border-black/[0.02] sticky top-0 z-40;
+  }
+  
+  .stat-icon-container {
+    @apply w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm;
+  }
+
+  .auth-split-layout {
+    @apply min-h-screen grid lg:grid-cols-2 bg-brand-cream;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-brand-navy/10 rounded-full hover:bg-brand-navy/20;
+}
