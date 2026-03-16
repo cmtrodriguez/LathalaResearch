@@ -463,8 +463,20 @@ export default function App() {
       setUser(data);
       setLoginModalOpen(false);
     } else {
-      const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
-      alert(`Login failed: ${errorData.error || res.statusText}`);
+      let errorMessage = 'Unknown error';
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        try {
+          const errorData = await res.json();
+          errorMessage = errorData.error || res.statusText || `Error ${res.status}`;
+        } catch (e) {
+          errorMessage = `JSON Parse Error: ${res.status} ${res.statusText}`;
+        }
+      } else {
+        const text = await res.text();
+        errorMessage = `Server Error (${res.status}): ${text.slice(0, 100)}${text.length > 100 ? '...' : ''}`;
+      }
+      alert(`Login failed: ${errorMessage}`);
     }
   };
 
@@ -971,9 +983,16 @@ export default function App() {
                             radius={[0, 10, 10, 0]} 
                             barSize={32}
                           >
-                            {(entry, index) => (
+                            {[
+                              { name: 'Approved', value: analytics?.stats?.approved?.count || 12, color: '#10b981' },
+                              { name: 'Under Review', value: analytics?.stats?.under_review?.count || 4, color: '#2d334a' },
+                              { name: 'Needs Revision', value: 3, color: '#f59e0b' },
+                              { name: 'Rejected', value: analytics?.stats?.rejected?.count || 1, color: '#f43f5e' },
+                              { name: 'Retracted', value: 2, color: '#8b5cf6' },
+                              { name: 'Disapproved', value: 1, color: '#3b82f6' },
+                            ].map((entry, index) => (
                               <Cell key={`cell-${index}`} fill={entry.color} />
-                            )}
+                            ))}
                           </Bar>
                         </BarChart>
                       </ResponsiveContainer>
@@ -990,7 +1009,7 @@ export default function App() {
                     </div>
                     <div className="space-y-6 flex-1">
                       <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-brand-navy/30 uppercase mb-4">
-                        {['S','M','T','W','T','F','S'].map(d => <div key={d}>{d}</div>)}
+                        {['S','M','T','W','T','F','S'].map((d, i) => <div key={`${d}-${i}`}>{d}</div>)}
                       </div>
                       <div className="grid grid-cols-7 gap-2">
                         {Array.from({length: 31}).map((_, i) => {
