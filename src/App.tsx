@@ -406,8 +406,6 @@ export default function App() {
   const [researchList, setResearchList] = useState<Research[]>([]);
   const [analytics, setAnalytics] = useState<any>(null);
   const [isLoginModalOpen, setLoginModalOpen] = useState(true);
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [signUpStep, setSignUpStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedResearchForReview, setSelectedResearchForReview] = useState<Research | null>(null);
   const [usersList, setUsersList] = useState<any[]>([]);
@@ -468,26 +466,6 @@ export default function App() {
     }
   };
 
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const form = e.target as HTMLFormElement;
-    const formData = new FormData(form);
-    const data = Object.fromEntries(formData.entries());
-
-    const res = await fetch('/api/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...data, role: 'researcher' })
-    });
-
-    if (res.ok) {
-      alert("Registration successful! Please sign in.");
-      setIsSignUp(false);
-    } else {
-      alert("Registration failed. Email might already exist.");
-    }
-  };
-
   if (isLoginModalOpen) {
     return (
       <div className="auth-split-layout">
@@ -532,7 +510,7 @@ export default function App() {
         {/* Right Side: Forms */}
         <div className="flex items-center justify-center p-6 sm:p-12 lg:p-24 bg-white">
           <motion.div 
-            key={isSignUp ? 'signup' : 'login'}
+            key="login"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             className="w-full max-w-md space-y-8"
@@ -546,120 +524,40 @@ export default function App() {
 
             <div>
               <h2 className="text-4xl font-serif font-bold text-brand-navy">
-                {isSignUp ? 'Create Account' : 'Welcome Back'}
+                Welcome Back
               </h2>
               <p className="text-brand-navy/50 mt-2 font-medium">
-                {isSignUp ? 'Join our research community today.' : 'Sign in to manage your research projects.'}
+                Sign in to manage your research projects.
               </p>
             </div>
             
-            {isSignUp ? (
-              <form onSubmit={handleSignUp} className="space-y-6">
-                <div className="space-y-4">
-                  {signUpStep === 1 ? (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-brand-navy/40 ml-1">Full Name</label>
-                        <input name="full_name" type="text" required className="input-field" placeholder="Dr. Jane Doe" />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-brand-navy/40 ml-1">Email Address</label>
-                        <input name="email" type="email" required className="input-field" placeholder="jane.doe@institution.edu" />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-brand-navy/40 ml-1">Password</label>
-                        <input name="password" type="password" required className="input-field" placeholder="••••••••••••" />
-                      </div>
-                    </motion.div>
-                  ) : (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold uppercase tracking-widest text-brand-navy/40 ml-1">Department</label>
-                          <input name="department" type="text" required className="input-field" placeholder="Medicine" />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold uppercase tracking-widest text-brand-navy/40 ml-1">Position</label>
-                          <input name="position" type="text" required className="input-field" placeholder="Professor" />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold uppercase tracking-widest text-brand-navy/40 ml-1">Contact</label>
-                          <input name="phone" type="text" className="input-field" placeholder="+1..." />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold uppercase tracking-widest text-brand-navy/40 ml-1">Type</label>
-                          <select name="type" className="input-field">
-                            <option value="internal">Internal Researcher</option>
-                            <option value="external">External Researcher</option>
-                          </select>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
+            <form onSubmit={handleLogin} className="space-y-6">
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-brand-navy/40 ml-1">Email Address</label>
+                  <input name="email" type="email" required className="input-field" placeholder="admin@lathala.edu" />
                 </div>
-
-                <div className="flex gap-3">
-                  {signUpStep === 2 && (
-                    <button type="button" onClick={() => setSignUpStep(1)} className="btn-secondary flex-1">
-                      Back
-                    </button>
-                  )}
-                  {signUpStep === 1 ? (
-                    <button type="button" onClick={() => setSignUpStep(2)} className="btn-primary flex-1">
-                      Next Step
-                    </button>
-                  ) : (
-                    <button type="submit" className="btn-primary flex-1">
-                      Complete Registration
-                    </button>
-                  )}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-brand-navy/40 ml-1">Password</label>
+                  <input name="password" type="password" required className="input-field" placeholder="••••••••••••" />
                 </div>
-
-                <p className="text-center text-sm font-medium text-brand-navy/40">
-                  Already have an account?{' '}
-                  <button type="button" onClick={() => setIsSignUp(false)} className="text-brand-navy font-bold hover:underline">
-                    Sign In
-                  </button>
+                <p className="text-[10px] text-brand-navy/30 font-medium px-1">
+                  Default Admin: admin@lathala.edu / admin123
                 </p>
-              </form>
-            ) : (
-              <form onSubmit={handleLogin} className="space-y-6">
-                <div className="space-y-4">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-brand-navy/40 ml-1">Email Address</label>
-                    <input name="email" type="email" required className="input-field" placeholder="admin@lathala.edu" />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-brand-navy/40 ml-1">Password</label>
-                    <input name="password" type="password" required className="input-field" placeholder="••••••••••••" />
-                  </div>
-                  <p className="text-[10px] text-brand-navy/30 font-medium px-1">
-                    Default Admin: admin@lathala.edu / admin123
-                  </p>
-                </div>
+              </div>
 
-                <div className="flex items-center justify-between text-sm">
-                  <label className="flex items-center gap-2 cursor-pointer text-brand-navy/60 font-medium">
-                    <input type="checkbox" className="rounded border-black/10 text-brand-navy focus:ring-brand-navy" />
-                    Remember me
-                  </label>
-                  <button type="button" className="text-brand-navy font-bold hover:underline">Forgot password?</button>
-                </div>
+              <div className="flex items-center justify-between text-sm">
+                <label className="flex items-center gap-2 cursor-pointer text-brand-navy/60 font-medium">
+                  <input type="checkbox" className="rounded border-black/10 text-brand-navy focus:ring-brand-navy" />
+                  Remember me
+                </label>
+                <button type="button" className="text-brand-navy font-bold hover:underline">Forgot password?</button>
+              </div>
 
-                <button type="submit" className="w-full btn-primary">
-                  Sign In to Dashboard
-                </button>
-
-                <p className="text-center text-sm font-medium text-brand-navy/40">
-                  New to Lathala?{' '}
-                  <button type="button" onClick={() => setIsSignUp(true)} className="text-brand-navy font-bold hover:underline">
-                    Create Account
-                  </button>
-                </p>
-              </form>
-            )}
+              <button type="submit" className="w-full btn-primary">
+                Sign In to Dashboard
+              </button>
+            </form>
 
             <div className="pt-8 border-t border-black/5 text-center">
               <p className="text-xs text-brand-navy/30 font-medium">
