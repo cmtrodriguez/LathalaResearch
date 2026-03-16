@@ -1,6 +1,5 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
-import Database from "better-sqlite3";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
@@ -13,86 +12,102 @@ const isVercel = process.env.VERCEL === "1";
 const useSupabase = !!(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 // --- Database Initialization ---
-let db: Database.Database | null = null;
+let db: any = null;
 let supabase: any = null;
 
-if (useSupabase) {
-  console.log("Using Supabase as the database...");
-  supabase = createClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-} else {
-  console.log("Using SQLite as the database...");
-  const dbPath = isVercel ? path.join("/tmp", "research_system.db") : path.join(__dirname, "research_system.db");
-  
-  if (isVercel && !fs.existsSync(dbPath)) {
+async function initDatabase() {
+  if (useSupabase) {
+    console.log("Using Supabase as the database...");
+    supabase = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+  } else {
+    console.log("Using SQLite as the database...");
     try {
-      const initialDbPath = path.join(process.cwd(), "research_system.db");
-      if (fs.existsSync(initialDbPath)) {
-        fs.copyFileSync(initialDbPath, dbPath);
+      // Dynamic import to prevent crash on environments where better-sqlite3 is not supported
+      const { default: Database } = await import("better-sqlite3");
+      const dbPath = isVercel ? path.join("/tmp", "research_system.db") : path.join(__dirname, "research_system.db");
+      
+      if (isVercel && !fs.existsSync(dbPath)) {
+        try {
+          const initialDbPath = path.join(process.cwd(), "research_system.db");
+          if (fs.existsSync(initialDbPath)) {
+            fs.copyFileSync(initialDbPath, dbPath);
+          }
+        } catch (err) {
+          console.error("Failed to copy initial database:", err);
+        }
+      }
+
+      db = new Database(dbPath);
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS users (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          full_name TEXT NOT NULL,
+          email TEXT UNIQUE NOT NULL,
+          password TEXT NOT NULL,
+          phone TEXT,
+          department TEXT,
+          position TEXT,
+          role TEXT CHECK(role IN ('admin', 'researcher', 'evaluator')) NOT NULL,
+          type TEXT CHECK(type IN ('internal', 'external')) DEFAULT 'internal'
+        );
+        CREATE TABLE IF NOT EXISTS research (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          hru_number TEXT UNIQUE,
+          title TEXT NOT NULL,
+          description TEXT,
+          registration_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+          hra_alignment TEXT,
+          department TEXT,
+          researcher_id INTEGER,
+          status_trb TEXT DEFAULT 'Pending',
+          status_rec TEXT DEFAULT 'Pending'
+        );
+        CREATE TABLE IF NOT EXISTS co_authors (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          research_id INTEGER,
+          name TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS reviews (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          research_id INTEGER,
+          reviewer_id INTEGER,
+          review_type TEXT CHECK(review_type IN ('TRB', 'REC')),
+          comments TEXT,
+          status TEXT,
+          review_date DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      // Seed Admin
+      const adminCount = db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'admin'").get() as { count: number };
+      if (adminCount.count === 0) {
+        db.prepare("INSERT INTO users (full_name, email, password, role) VALUES (?, ?, ?, ?)").run(
+          "System Admin", "admin@lathala.edu", "admin123", "admin"
+        );
       }
     } catch (err) {
-      console.error("Failed to copy initial database:", err);
+      console.error("Database initialization failed:", err);
+      if (isVercel) {
+        console.error("Note: SQLite is not recommended on Vercel. Please configure Supabase.");
+      }
     }
-  }
-
-  try {
-    db = new Database(dbPath);
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        full_name TEXT NOT NULL,
-        email TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        phone TEXT,
-        department TEXT,
-        position TEXT,
-        role TEXT CHECK(role IN ('admin', 'researcher', 'evaluator')) NOT NULL,
-        type TEXT CHECK(type IN ('internal', 'external')) DEFAULT 'internal'
-      );
-      CREATE TABLE IF NOT EXISTS research (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        hru_number TEXT UNIQUE,
-        title TEXT NOT NULL,
-        description TEXT,
-        registration_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-        hra_alignment TEXT,
-        department TEXT,
-        researcher_id INTEGER,
-        status_trb TEXT DEFAULT 'Pending',
-        status_rec TEXT DEFAULT 'Pending'
-      );
-      CREATE TABLE IF NOT EXISTS co_authors (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        research_id INTEGER,
-        name TEXT NOT NULL
-      );
-      CREATE TABLE IF NOT EXISTS reviews (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        research_id INTEGER,
-        reviewer_id INTEGER,
-        review_type TEXT CHECK(review_type IN ('TRB', 'REC')),
-        comments TEXT,
-        status TEXT,
-        review_date DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-    // Seed Admin
-    const adminCount = db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'admin'").get() as { count: number };
-    if (adminCount.count === 0) {
-      db.prepare("INSERT INTO users (full_name, email, password, role) VALUES (?, ?, ?, ?)").run(
-        "System Admin", "admin@lathala.edu", "admin123", "admin"
-      );
-    }
-  } catch (err) {
-    console.error("SQLite initialization failed:", err);
   }
 }
 
+// Ensure database is initialized before handling requests
+const initPromise = initDatabase();
+
 const app = express();
 app.use(express.json());
+
+// Middleware to wait for DB initialization
+app.use(async (req, res, next) => {
+  await initPromise;
+  next();
+});
 
 // --- Auth API ---
 app.post("/api/login", async (req, res) => {
@@ -114,7 +129,8 @@ app.post("/api/login", async (req, res) => {
       }
       return res.json(user);
     } else {
-      const user = db!.prepare("SELECT * FROM users WHERE email = ? AND password = ?").get(email, password);
+      if (!db) return res.status(500).json({ error: "Database not initialized. Please check server logs." });
+      const user = db.prepare("SELECT * FROM users WHERE email = ? AND password = ?").get(email, password);
       if (user) {
         res.json(user);
       } else {
